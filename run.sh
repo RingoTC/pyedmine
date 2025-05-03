@@ -1,14 +1,24 @@
 #!/bin/bash
 
 # Define variables for multiple datasets and models
-DATASETS=("assist2009" "assist2015" "algebra2005")
-MODELS=("DKT" "AKT" "SAKT")
-NUM_FOLDS=1 # Number of folds for k-fold cross-validation
+# DATASETS=("assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "xes3g5m" "ednet-kt1" "assist2009")
+# DATASETS=("assist2009")
+# MODELS=("DKT" "RouterKT" "AKT")
+DATASETS=("edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "xes3g5m" "ednet-kt1" "assist2009")
+MODELS=("RouterKT")
+NUM_FOLDS=5 # Number of folds for k-fold cross-validation
 SETTING_NAME="pykt_setting"
 SEED="0"
 
-echo "Clearing saved models..."
-rm -rf /Volumes/T7/dev/monorepo/MachineLearning/pyedmine/dataset/dataset/saved_models/*
+# # Prepare datasets
+# echo "Preparing datasets..."
+# for DATASET_NAME in "${DATASETS[@]}"; do
+#     echo "Preparing dataset: $DATASET_NAME"
+#     python examples/knowledge_tracing/prepare_dataset/pykt_setting.py --dataset_name ${DATASET_NAME}
+# done
+
+# echo "Clearing saved models..."
+# rm -rf ./dataset/dataset/saved_models/*
 
 # Loop through each dataset
 for DATASET_NAME in "${DATASETS[@]}"; do
@@ -21,10 +31,10 @@ for DATASET_NAME in "${DATASETS[@]}"; do
         # Determine the correct training script based on the model
         if [ "$MODEL_NAME" == "DKT" ]; then
             TRAIN_SCRIPT="examples/knowledge_tracing/train/dkt.py"
-        elif [ "$MODEL_NAME" == "DKVMN" ]; then
-            TRAIN_SCRIPT="examples/knowledge_tracing/train/dkvmn.py"
-        elif [ "$MODEL_NAME" == "SAKT" ]; then
-            TRAIN_SCRIPT="examples/knowledge_tracing/train/sakt.py"
+        elif [ "$MODEL_NAME" == "RouterKT" ]; then
+            TRAIN_SCRIPT="examples/knowledge_tracing/train/router_kt.py"
+        elif [ "$MODEL_NAME" == "AKT" ]; then
+            TRAIN_SCRIPT="examples/knowledge_tracing/train/akt.py"
         else
             echo "Unknown model: $MODEL_NAME, skipping..."
             continue
@@ -35,6 +45,7 @@ for DATASET_NAME in "${DATASETS[@]}"; do
             echo "Training fold $i..."
             python "$TRAIN_SCRIPT" \
                 --train_file_name ${DATASET_NAME}_train_fold_${i}.txt \
+                --valid_file_name ${DATASET_NAME}_valid_fold_${i}.txt \
                 --save_model True \
                 --setting_name ${SETTING_NAME} \
                 --dataset_name ${DATASET_NAME}

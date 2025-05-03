@@ -1,4 +1,6 @@
 import argparse
+import wandb
+import re
 from torch.utils.data import DataLoader
 
 from config import config_sequential_dlkt
@@ -6,6 +8,16 @@ from utils import get_model_info, select_dataset
 
 from edmine.utils.parse import str2bool
 from edmine.evaluator.SequentialDLKTEvaluator import SequentialDLKTEvaluator
+
+
+def get_fold_from_model_dir(model_dir_name):
+    """Extract fold number from model directory name.
+    Example: DKT@@pykt_setting@@assist2009_train_fold_0@@seed_0@@ -> 0
+    """
+    match = re.search(r'_fold_(\d+)@@', model_dir_name)
+    if match:
+        return int(match.group(1))
+    return None
 
 
 if __name__ == "__main__":
@@ -50,6 +62,28 @@ if __name__ == "__main__":
 
     global_params, global_objects = config_sequential_dlkt(params)
     model_name, setting_name, _ = get_model_info(params["model_dir_name"])
+    fold = get_fold_from_model_dir(params["model_dir_name"])
+
+    # Initialize wandb with more context
+    wandb.init(
+        project="KnowledgeTracing",
+        config={
+            "model": model_name,
+            "dataset": params["dataset_name"],
+            "setting": setting_name,
+            "fold": fold,
+            "test_file": params["test_file_name"],
+            "seq_start": params["seq_start"],
+            "evaluate_batch_size": params["evaluate_batch_size"],
+            "question_cold_start": params["question_cold_start"],
+            "user_cold_start": params["user_cold_start"],
+            "multi_step": params["multi_step"],
+            "multi_step_overall": params["multi_step_overall"],
+            "multi_step_accumulate": params["multi_step_accumulate"],
+            "use_core": params["use_core"]
+        },
+        name=f"{model_name}_{params['dataset_name']}_{setting_name}_fold{fold}"
+    )
 
     dataset_test = select_dataset(model_name)({
         "setting_name": setting_name,
@@ -60,3 +94,8 @@ if __name__ == "__main__":
     global_objects["data_loaders"] = {"test_loader": dataloader_test}
     evaluator = SequentialDLKTEvaluator(global_params, global_objects)
     evaluator.evaluate()
+    
+    # Get evaluation results and log to wandb
+    results = evaluator.log_inference_results()
+    wandb.log(results)
+    wandb.finish()
