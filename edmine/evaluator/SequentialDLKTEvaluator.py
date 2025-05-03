@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import wandb
 from tqdm import tqdm
 from copy import deepcopy
 from torch.utils.data import DataLoader
@@ -12,6 +13,7 @@ from edmine.utils.data_io import write_kt_file
 class SequentialDLKTEvaluator(DLEvaluator):
     def __init__(self, params, objects):
         super().__init__(params, objects)
+        wandb.init(project="KnowledgeTracing")
 
     def inference(self, model, data_loader):
         evaluate_overall = self.params["sequential_dlkt"]["evaluate_overall"]
@@ -214,6 +216,8 @@ class SequentialDLKTEvaluator(DLEvaluator):
                     f"    overall performances (seq_start {seq_start}) are AUC: "
                     f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                     f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                wandb.log({"overall_AUC": performance['AUC'], "overall_ACC": performance['ACC'], 
+                           "overall_RMSE": performance['RMSE'], "overall_MAE": performance['MAE']})
 
             if use_core:
                 performance = inference_result["core"]["repeated"]
@@ -221,12 +225,16 @@ class SequentialDLKTEvaluator(DLEvaluator):
                     f"    core performances (seq_start {seq_start}, repeated) are AUC: "
                     f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                     f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                wandb.log({"core_repeated_AUC": performance['AUC'], "core_repeated_ACC": performance['ACC'], 
+                           "core_repeated_RMSE": performance['RMSE'], "core_repeated_MAE": performance['MAE']})
 
                 performance = inference_result["core"]["non-repeated"]
                 self.objects["logger"].info(
                     f"    core performances (seq_start {seq_start}, non-repeated) are AUC: "
                     f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                     f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                wandb.log({"core_non_repeated_AUC": performance['AUC'], "core_non_repeated_ACC": performance['ACC'], 
+                           "core_non_repeated_RMSE": performance['RMSE'], "core_non_repeated_MAE": performance['MAE']})
 
             if user_cold_start >= 1:
                 performance = inference_result["user_cold_start"]
@@ -234,6 +242,8 @@ class SequentialDLKTEvaluator(DLEvaluator):
                     f"    user cold start performances (cold_start is {user_cold_start}) are AUC: "
                     f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                     f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                wandb.log({"user_cold_start_AUC": performance['AUC'], "user_cold_start_ACC": performance['ACC'], 
+                           "user_cold_start_RMSE": performance['RMSE'], "user_cold_start_MAE": performance['MAE']})
                 
             if question_cold_start >= 0:
                 performance = inference_result["question_cold_start"]
@@ -241,6 +251,8 @@ class SequentialDLKTEvaluator(DLEvaluator):
                     f"    question cold start performances (cold_start is {question_cold_start}) are AUC: "
                     f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                     f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                wandb.log({"question_cold_start_AUC": performance['AUC'], "question_cold_start_ACC": performance['ACC'], 
+                           "question_cold_start_RMSE": performance['RMSE'], "question_cold_start_MAE": performance['MAE']})
 
             if multi_step > 1:
                 if multi_step_overall and multi_step_accumulate:
@@ -249,21 +261,37 @@ class SequentialDLKTEvaluator(DLEvaluator):
                         f"    overall accumulative multi step performances (seq_start is {seq_start}, multi_step is {multi_step}) are AUC: "
                         f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                         f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                    wandb.log({"multi_step_overall_accumulative_AUC": performance['AUC'], 
+                               "multi_step_overall_accumulative_ACC": performance['ACC'], 
+                               "multi_step_overall_accumulative_RMSE": performance['RMSE'], 
+                               "multi_step_overall_accumulative_MAE": performance['MAE']})
                 elif multi_step_overall and (not multi_step_accumulate):
                     performance = inference_result['multi_step']["overall-non-accumulate"]
                     self.objects["logger"].info(
                         f"    overall non-accumulative multi step performances (seq_start is {seq_start}, multi_step is {multi_step}) are AUC: "
                         f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                         f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                    wandb.log({"multi_step_overall_non_accumulative_AUC": performance['AUC'], 
+                               "multi_step_overall_non_accumulative_ACC": performance['ACC'], 
+                               "multi_step_overall_non_accumulative_RMSE": performance['RMSE'], 
+                               "multi_step_overall_non_accumulative_MAE": performance['MAE']})
                 elif (not multi_step_overall) and (not multi_step_accumulate):
                     performance = inference_result['multi_step']["last-non-accumulate"]
                     self.objects["logger"].info(
                         f"    last non-accumulative multi step performances (seq_start is {seq_start}, multi_step is {multi_step}) are AUC: "
                         f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                         f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                    wandb.log({"multi_step_last_non_accumulative_AUC": performance['AUC'], 
+                               "multi_step_last_non_accumulative_ACC": performance['ACC'], 
+                               "multi_step_last_non_accumulative_RMSE": performance['RMSE'], 
+                               "multi_step_last_non_accumulative_MAE": performance['MAE']})
                 else:
                     performance = inference_result['multi_step']["last-accumulate"]
                     self.objects["logger"].info(
                         f"    last accumulative multi step performances (seq_start is {seq_start}, multi_step is {multi_step}) are AUC: "
                         f"{performance['AUC']:<9.5}, ACC: {performance['ACC']:<9.5}, "
                         f"RMSE: {performance['RMSE']:<9.5}, MAE: {performance['MAE']:<9.5}, ")
+                    wandb.log({"multi_step_last_accumulative_AUC": performance['AUC'], 
+                               "multi_step_last_accumulative_ACC": performance['ACC'], 
+                               "multi_step_last_accumulative_RMSE": performance['RMSE'], 
+                               "multi_step_last_accumulative_MAE": performance['MAE']})

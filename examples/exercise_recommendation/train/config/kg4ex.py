@@ -76,8 +76,7 @@ def config_kg4ex(local_params):
         train_file_name = local_params["train_file_name"]
 
         global_params["trainer_config"]["save_model_dir_name"] = (
-            f"{model_name}@@{setting_name}@@{train_file_name.replace('.txt', '')}@@seed_{local_params['seed']}@@"
-            f"{get_now_time().replace(' ', '@').replace(':', '-')}")
+            f"{model_name}@@{setting_name}@@{train_file_name.replace('.txt', '')}@@seed_{local_params['seed']}@@")
         save_params(global_params, MODELS_DIR, global_objects["logger"])
     config_wandb(local_params, global_params, model_name)
 
