@@ -473,7 +473,7 @@ class MultiHeadAttention4RouterKT(nn.Module):
         balance_loss = (f * P).sum()
         return balance_loss
         
-    def forward(self, q, k, v, mask, zero_pad, question_difficulty_emb):
+    def forward(self, q, k, v, mask, zero_pad, question_difficulty_emb, q4router=None):
         model_config = self.params["models_config"]["RouterKT"]
         dim_model = model_config["dim_model"]
         num_head = model_config["num_head"]
@@ -495,7 +495,14 @@ class MultiHeadAttention4RouterKT(nn.Module):
         v = v.transpose(1, 2)
         
         # Calculate routing scores for dynamic heads
-        q_for_routing = q.permute(0, 2, 1, 3).reshape(batch_size * q.size(2), num_head * dim_head)
+
+        # q_for_routing = q4router.view(bs, seq_len, self.h, self.d_k)  # [bs, seq_len, h, d_k]
+        # q_for_routing = q_for_routing.permute(0, 2, 1, 3)  # [bs, h, seq_len, d_k]
+        # q_for_routing = q_for_routing.reshape(bs * seq_len, self.h * self.d_k)  # [bs*seq_len, h*d_k]
+        q4router = q4router.view(batch_size, q.size(2), num_head, dim_head)
+        q_for_routing = q4router.permute(0, 2, 1, 3).reshape(batch_size * q.size(2), num_head * dim_head)
+
+        # q_for_routing = q.permute(0, 2, 1, 3).reshape(batch_size * q.size(2), num_head * dim_head)
         logits = self.wg(q_for_routing)  # [bs*seq_len, n_dynamic_heads]
         gates = F.softmax(logits, dim=1)  # [bs*seq_len, n_dynamic_heads]
         

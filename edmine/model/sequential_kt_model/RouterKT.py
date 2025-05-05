@@ -174,19 +174,22 @@ class RouterKTArchitecture(nn.Module):
         # Knowledge encoder
         for block in self.knowledge_encoder:
             # Process interaction embeddings
-            y = block(y, y, y, mask_flag=True, diff=diff, response=response, apply_pos=False)
+            y = block(y, y, y, mask_flag=True, diff=diff, response=response, apply_pos=False, q4router=x)
 
         # Question encoder with alternating self-attention and cross-attention
         flag_first = True
         for block in self.question_encoder:
             if flag_first:
                 # Self-attention on question embeddings
-                x = block(x, x, x, mask_flag=True, diff=diff, response=response, apply_pos=False)
+                x = block(x, x, x, mask_flag=True, diff=diff, response=response, apply_pos=False, q4router=x)
                 flag_first = False
             else:
                 # Cross-attention between question and interaction
-                x = block(x, x, y, mask_flag=False, diff=diff, response=response, apply_pos=True)
+                x = block(x, x, y, mask_flag=False, diff=diff, response=response, apply_pos=True, q4router=x)
                 flag_first = True
+
+        # for block in self.question_encoder:
+        #     x = block(x, x, y, mask_flag=False, diff=diff, response=response, apply_pos=True, q4router=x)
 
         return x
 
@@ -225,7 +228,7 @@ class RouterTransformerLayer(nn.Module):
         self.layer_norm2 = nn.LayerNorm(dim_model)
         self.dropout2 = nn.Dropout(dropout)
 
-    def forward(self, query, key, values, mask_flag, diff=None, response=None, apply_pos=True):
+    def forward(self, query, key, values, mask_flag, diff=None, response=None, apply_pos=True, q4router=None):
         # Create proper attention mask
         seq_len = query.size(1)
         if mask_flag:
@@ -239,9 +242,9 @@ class RouterTransformerLayer(nn.Module):
 
         # Apply MoH attention
         if mask_flag:
-            attn_output = self.attn(query, key, values, src_mask, True, diff)
+            attn_output = self.attn(query, key, values, src_mask, True, diff, q4router)
         else:
-            attn_output = self.attn(query, key, values, src_mask, False, diff)
+            attn_output = self.attn(query, key, values, src_mask, False, diff, q4router)
 
         # First residual connection and layer norm
         x = self.layer_norm1(query + self.dropout1(attn_output))

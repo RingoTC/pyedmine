@@ -1,0 +1,97 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Run Training Script",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.sh",
+            "cwd": "${workspaceFolder}",
+            "terminalKind": "integrated"
+        },
+        {
+            "name": "Train RouterKT",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "examples/knowledge_tracing/train/router_kt.py",
+            "args": [
+                "--train_file_name", "statics2011_train_fold_0.txt",
+                "--valid_file_name", "statics2011_valid_fold_0.txt",
+                "--save_model", "True",
+                "--setting_name", "pykt_setting",
+                "--dataset_name", "statics2011",
+                "--train_batch_size", "128"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Train DKT",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "examples/knowledge_tracing/train/dkt.py",
+            "args": [
+                "--train_file_name", "statics2011_train_fold_0.txt",
+                "--valid_file_name", "statics2011_valid_fold_0.txt",
+                "--save_model", "True",
+                "--setting_name", "pykt_setting",
+                "--dataset_name", "statics2011",
+                "--train_batch_size", "128"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Train AKT",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "examples/knowledge_tracing/train/akt.py",
+            "args": [
+                "--train_file_name", "statics2011_train_fold_0.txt",
+                "--valid_file_name", "statics2011_valid_fold_0.txt",
+                "--save_model", "True",
+                "--setting_name", "pykt_setting",
+                "--dataset_name", "statics2011",
+                "--train_batch_size", "128"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Evaluate Model",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "examples/knowledge_tracing/evaluate/sequential_dlkt.py",
+            "args": [
+                "--model_dir_name", "${input:modelDir}",
+                "--dataset_name", "statics2011",
+                "--test_file_name", "statics2011_test.txt"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "modelDir",
+            "type": "promptString",
+            "description": "Enter the model directory path",
+            "default": "./dataset/dataset/saved_models/RouterKT@@pykt_setting@@statics2011_train_fold_0@@seed_0"
+        }
+    ]
+}
