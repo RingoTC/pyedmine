@@ -238,7 +238,10 @@ class RouterTransformerLayer(nn.Module):
         src_mask = (~nopeek_mask).to(query.device)
 
         # Apply MoH attention
-        attn_output = self.attn(query, key, values, src_mask, True, diff)
+        if mask_flag:
+            attn_output = self.attn(query, key, values, src_mask, True, diff)
+        else:
+            attn_output = self.attn(query, key, values, src_mask, False, diff)
 
         # First residual connection and layer norm
         x = self.layer_norm1(query + self.dropout1(attn_output))
