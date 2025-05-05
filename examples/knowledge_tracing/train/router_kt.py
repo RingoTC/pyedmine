@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(parents=[setup_common_args(), setup_scheduler_args(), setup_grad_acc_args()], 
                                      add_help=False)
     # batch size
-    parser.add_argument("--train_batch_size", type=int, default=128)
+    parser.add_argument("--train_batch_size", type=int, default=256)
     parser.add_argument("--evaluate_batch_size", type=int, default=256)
     # optimizer
     parser.add_argument("--optimizer_type", type=str, default="adam", choices=("adam", "sgd"))
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--key_query_same", type=str2bool, default=True)
     parser.add_argument("--separate_qa", type=str2bool, default=False)
     parser.add_argument("--routing_mode", type=str, default="dynamic", choices=("dynamic", "query_norm"))
-    parser.add_argument("--w_balance_loss", type=float, default=0.0001)
+    parser.add_argument("--w_balance_loss", type=float, default=1)
     parser.add_argument("--w_rasch_loss", type=float, default=0.00001)
     # other
     parser.add_argument("--save_model", type=str2bool, default=False)
