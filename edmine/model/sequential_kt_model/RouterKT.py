@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from edmine.model.sequential_kt_model.DLSequentialKTModel import DLSequentialKTModel
 from edmine.model.module.EmbedLayer import EmbedLayer
@@ -167,14 +168,15 @@ class RouterKTArchitecture(nn.Module):
     def forward(self, batch):
         x = batch["question_emb"]
         y = batch["interaction_emb"]
-        question_difficulty_emb = batch["question_difficulty_emb"]
-        diff = None
+        # question_difficulty_emb = batch["question_difficulty_emb"]
+        diff = batch["question_difficulty_emb"]
         response = None
 
+        # 始终只使用 Question 信息做路由
         # Knowledge encoder
         for block in self.knowledge_encoder:
             # Process interaction embeddings
-            y = block(y, y, y, mask_flag=True, diff=diff, response=response, apply_pos=False, q4router=x)
+            y = block(y, y, y, mask_flag=True, diff=diff, response=response, apply_pos=True, q4router=x)
 
         # Question encoder with alternating self-attention and cross-attention
         flag_first = True
@@ -188,9 +190,6 @@ class RouterKTArchitecture(nn.Module):
                 x = block(x, x, y, mask_flag=False, diff=diff, response=response, apply_pos=True, q4router=x)
                 flag_first = True
 
-        # for block in self.question_encoder:
-        #     x = block(x, x, y, mask_flag=False, diff=diff, response=response, apply_pos=True, q4router=x)
-
         return x
 
 
@@ -203,42 +202,33 @@ class RouterTransformerLayer(nn.Module):
         dim_model = model_config["dim_model"]
         dim_ff = model_config["dim_ff"]
         dropout = model_config["dropout"]
-        num_head = model_config["num_head"]
-        num_shared_heads = model_config["num_shared_heads"]
-        num_selected_heads = model_config["num_selected_heads"]
-        key_query_same = model_config["key_query_same"]
-        seq_len = model_config["seq_len"]
-        routing_mode = model_config["routing_mode"]
         
-        # MoH attention layer
+        # MoH attention layer - keep unchanged
         self.attn = MultiHeadAttention4RouterKT(params)
 
-        # Layer normalization and dropout
+        # Two layer norm layer and two dropout layer
         self.layer_norm1 = nn.LayerNorm(dim_model)
         self.dropout1 = nn.Dropout(dropout)
 
-        # Feed-forward network
-        self.ffn = nn.Sequential(
-            nn.Linear(dim_model, dim_ff),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(dim_ff, dim_model)
-        )
+        # Feed-forward network components
+        self.linear1 = nn.Linear(dim_model, dim_ff)
+        self.activation = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_ff, dim_model)
 
         self.layer_norm2 = nn.LayerNorm(dim_model)
         self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, query, key, values, mask_flag, diff=None, response=None, apply_pos=True, q4router=None):
-        # Create proper attention mask
         seq_len = query.size(1)
         if mask_flag:
             # Can see current and past values (mask=1)
-            nopeek_mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1).bool()
+            upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=1).astype('uint8')
         else:
             # Can only see past values (mask=0)
-            nopeek_mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=0).bool()
+            upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=0).astype('uint8')
 
-        src_mask = (~nopeek_mask).to(query.device)
+        src_mask = (torch.from_numpy(upper_triangle_ones) == 0).to(query.device)
 
         # Apply MoH attention
         if mask_flag:
@@ -247,11 +237,13 @@ class RouterTransformerLayer(nn.Module):
             attn_output = self.attn(query, key, values, src_mask, False, diff, q4router)
 
         # First residual connection and layer norm
-        x = self.layer_norm1(query + self.dropout1(attn_output))
+        query = query + self.dropout1(attn_output)
+        query = self.layer_norm1(query)
 
         # Apply feed-forward network if needed
         if apply_pos:
-            ffn_output = self.ffn(x)
-            x = self.layer_norm2(x + self.dropout2(ffn_output))
+            query2 = self.linear2(self.dropout(self.activation(self.linear1(query))))
+            query = query + self.dropout2(query2)
+            query = self.layer_norm2(query)
 
-        return x
+        return query
