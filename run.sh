@@ -2,23 +2,20 @@
 
 # Define variables for multiple datasets and models
 # DATASETS=("assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "xes3g5m" "ednet-kt1" "assist2009")
-# DATASETS=("assist2009" "assist2012")
+# DATASETS=("assist2017")
 # MODELS=("DKT" "RouterKT" "AKT")
-DATASETS=("statics2011")
+DATASETS=("ednet-kt1" "assist2012")
 MODELS=("RouterKT")
 NUM_FOLDS=5 # Number of folds for k-fold cross-validation
 SETTING_NAME="pykt_setting"
 SEED="0"
 
-# # # Prepare datasets
+# # # # Prepare datasets
 # echo "Preparing datasets..."
 # for DATASET_NAME in "${DATASETS[@]}"; do
 #     echo "Preparing dataset: $DATASET_NAME"
 #     python examples/knowledge_tracing/prepare_dataset/pykt_setting.py --dataset_name ${DATASET_NAME}
 # done
-
-echo "Clearing saved models..."
-rm -rf ./dataset/dataset/saved_models/*
 
 # Loop through each dataset
 for DATASET_NAME in "${DATASETS[@]}"; do
@@ -42,7 +39,7 @@ for DATASET_NAME in "${DATASETS[@]}"; do
         
         echo "Starting k-fold training and evaluation for $DATASET_NAME with $MODEL_NAME..."
         for i in $(seq 0 $(($NUM_FOLDS-1))); do
-            # echo "Training fold $i..."
+            echo "Training fold $i..."
             python "$TRAIN_SCRIPT" \
                 --train_file_name ${DATASET_NAME}_train_fold_${i}.txt \
                 --valid_file_name ${DATASET_NAME}_valid_fold_${i}.txt \
@@ -67,7 +64,8 @@ for DATASET_NAME in "${DATASETS[@]}"; do
             python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
                 --model_dir_name "${MODEL_DIR}" \
                 --dataset_name ${DATASET_NAME} \
-                --test_file_name ${DATASET_NAME}_test.txt
+                --test_file_name ${DATASET_NAME}_test.txt \
+                --user_cold_start 10
         done
     done
 done
