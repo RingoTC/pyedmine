@@ -80,7 +80,7 @@ for DATASET_NAME in "${DATASETS[@]}"; do
                 --model_dir_name "${MODEL_DIR}" \
                 --dataset_name ${DATASET_NAME} \
                 --test_file_name ${DATASET_NAME}_test.txt \
-                --user_cold_start 10 \
+                --user_cold_start 10
         done
     done
 done
