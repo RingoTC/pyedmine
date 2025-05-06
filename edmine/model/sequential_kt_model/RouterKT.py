@@ -221,17 +221,21 @@ class RouterTransformerLayer(nn.Module):
 
     def forward(self, query, key, values, mask_flag, diff=None, response=None, apply_pos=True, q4router=None):
         seq_len = query.size(1)
-        if mask_flag:
-            # Can see current and past values (mask=1)
-            upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=1).astype('uint8')
-        else:
-            # Can only see past values (mask=0)
-            upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=0).astype('uint8')
+        # if mask_flag:
+        #     # Can see current and past values (mask=1)
+        #     upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=1).astype('uint8')
+        # else:
+        #     # Can only see past values (mask=0)
+        #     upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=0).astype('uint8')
 
-        src_mask = (torch.from_numpy(upper_triangle_ones) == 0).to(query.device)
+        upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=mask_flag).astype('uint8')
+        src_mask = (torch.from_numpy(upper_triangle_ones) == 0).to(self.params["device"])
+    
+
+        # src_mask = (torch.from_numpy(upper_triangle_ones) == 0).to(query.device)
 
         # Apply MoH attention
-        if mask_flag:
+        if not mask_flag:
             attn_output = self.attn(query, key, values, src_mask, True, diff, q4router)
         else:
             attn_output = self.attn(query, key, values, src_mask, False, diff, q4router)
