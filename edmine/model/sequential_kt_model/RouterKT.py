@@ -7,8 +7,7 @@ from edmine.model.sequential_kt_model.DLSequentialKTModel import DLSequentialKTM
 from edmine.model.module.EmbedLayer import EmbedLayer
 from edmine.model.module.PredictorLayer import PredictorLayer
 from edmine.model.loss import binary_cross_entropy
-from edmine.model.module.MultiHeadAttention import MultiHeadAttention4RouterKT
-
+from edmine.model.module.Transformer import TransformerLayer4RouterKT
 
 class RouterKT(nn.Module, DLSequentialKTModel):
     model_name = "RouterKT"
@@ -22,12 +21,11 @@ class RouterKT(nn.Module, DLSequentialKTModel):
         self.embed_layer = EmbedLayer(model_config["embed_config"])
         self.encoder_layer = RouterKTArchitecture(params)
         self.predict_layer = PredictorLayer(model_config["predictor_config"])
-        self.separate_qa = model_config["separate_qa"]
         
     def base_emb(self, batch):
         q2c_transfer_table = self.objects["dataset"]["q2c_transfer_table"]
         q2c_mask_table = self.objects["dataset"]["q2c_mask_table"]
-        separate_qa = self.separate_qa
+        separate_qa = self.params["models_config"]["RouterKT"]["separate_qa"]
         num_concept = self.objects["dataset"]["q_table"].shape[1]
 
         # c_ct
@@ -150,10 +148,10 @@ class RouterKTArchitecture(nn.Module):
 
         # Create transformer blocks with MoH attention
         self.question_encoder = nn.ModuleList([
-            RouterTransformerLayer(params) for _ in range(num_block * 2)
+            TransformerLayer4RouterKT(params) for _ in range(num_block * 2)
         ])
         self.knowledge_encoder = nn.ModuleList([
-            RouterTransformerLayer(params) for _ in range(num_block)
+            TransformerLayer4RouterKT(params) for _ in range(num_block)
         ])
 
     def get_balance_loss(self):
@@ -193,61 +191,3 @@ class RouterKTArchitecture(nn.Module):
         return x
 
 
-class RouterTransformerLayer(nn.Module):
-    def __init__(self, params):
-        super(RouterTransformerLayer, self).__init__()
-        self.params = params
-
-        model_config = self.params["models_config"]["RouterKT"]
-        dim_model = model_config["dim_model"]
-        dim_ff = model_config["dim_ff"]
-        dropout = model_config["dropout"]
-        
-        # MoH attention layer - keep unchanged
-        self.attn = MultiHeadAttention4RouterKT(params)
-
-        # Two layer norm layer and two dropout layer
-        self.layer_norm1 = nn.LayerNorm(dim_model)
-        self.dropout1 = nn.Dropout(dropout)
-
-        # Feed-forward network components
-        self.linear1 = nn.Linear(dim_model, dim_ff)
-        self.activation = nn.ReLU()
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_ff, dim_model)
-
-        self.layer_norm2 = nn.LayerNorm(dim_model)
-        self.dropout2 = nn.Dropout(dropout)
-
-    def forward(self, query, key, values, mask_flag, diff=None, response=None, apply_pos=True, q4router=None):
-        seq_len = query.size(1)
-        # if mask_flag:
-        #     # Can see current and past values (mask=1)
-        #     upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=1).astype('uint8')
-        # else:
-        #     # Can only see past values (mask=0)
-        #     upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=0).astype('uint8')
-
-        upper_triangle_ones = np.triu(np.ones((1, 1, seq_len, seq_len)), k=mask_flag).astype('uint8')
-        src_mask = (torch.from_numpy(upper_triangle_ones) == 0).to(self.params["device"])
-    
-
-        # src_mask = (torch.from_numpy(upper_triangle_ones) == 0).to(query.device)
-
-        # Apply MoH attention
-        if not mask_flag:
-            attn_output = self.attn(query, key, values, src_mask, True, diff, q4router)
-        else:
-            attn_output = self.attn(query, key, values, src_mask, False, diff, q4router)
-
-        # First residual connection and layer norm
-        query = query + self.dropout1(attn_output)
-        query = self.layer_norm1(query)
-
-        # Apply feed-forward network if needed
-        if apply_pos:
-            query2 = self.linear2(self.dropout(self.activation(self.linear1(query))))
-            query = query + self.dropout2(query2)
-            query = self.layer_norm2(query)
-
-        return query
