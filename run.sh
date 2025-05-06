@@ -1,11 +1,14 @@
 #!/bin/bash
 
 # Define variables for multiple datasets and models
-DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy")
+# DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy")
 # DATASETS=("assist2009" "assist2012")
 # MODELS=("DKT" "RouterKT" "AKT")
 # DATASETS=("xes3g5m")
 # DATASETS=("assist2012")
+
+DATASETS=("moocradar-C746997" "ednet-kt1" "xes3g5m")
+
 MODELS=("RouterKT")
 NUM_FOLDS=5 # Number of folds for k-fold cross-validation
 SETTING_NAME="pykt_setting"
@@ -78,7 +81,6 @@ for DATASET_NAME in "${DATASETS[@]}"; do
                 --dataset_name ${DATASET_NAME} \
                 --test_file_name ${DATASET_NAME}_test.txt \
                 --user_cold_start 10 \
-                --train_batch_size 256
         done
     done
 done
