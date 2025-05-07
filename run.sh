@@ -1,25 +1,29 @@
 #!/bin/bash
 
 # Define variables for multiple datasets and models
-# DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy")
+# DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "ednet-kt1" "xes3g5m")
 # DATASETS=("assist2009" "assist2012")
 # MODELS=("DKT" "RouterKT" "AKT")
 # DATASETS=("xes3g5m")
-# DATASETS=("assist2012")
 
-DATASETS=("moocradar-C746997" "ednet-kt1" "xes3g5m")
+
+DATASETS=("statics2011")
+
+# DATASETS=("assist2009")
+
+# DATASETS=("moocradar-C746997" "ednet-kt1" "xes3g5m")
 
 MODELS=("RouterKT")
 NUM_FOLDS=5 # Number of folds for k-fold cross-validation
 SETTING_NAME="pykt_setting"
 SEED="0"
 
-# # # Prepare datasets
-# echo "Preparing datasets..."
-# for DATASET_NAME in "${DATASETS[@]}"; do
-#     echo "Preparing dataset: $DATASET_NAME"
-#     python examples/knowledge_tracing/prepare_dataset/pykt_setting.py --dataset_name ${DATASET_NAME}
-# done
+# # Prepare datasets
+echo "Preparing datasets..."
+for DATASET_NAME in "${DATASETS[@]}"; do
+    echo "Preparing dataset: $DATASET_NAME"
+    python examples/knowledge_tracing/prepare_dataset/pykt_setting.py --dataset_name ${DATASET_NAME}
+done
 
 
 # Loop through each dataset
@@ -45,7 +49,7 @@ for DATASET_NAME in "${DATASETS[@]}"; do
         echo "Starting k-fold training and evaluation for $DATASET_NAME with $MODEL_NAME..."
         for i in $(seq 0 $(($NUM_FOLDS-1))); do
             echo "Training fold $i..."
-            if [ "$DATASET_NAME" == "xes3g5m" ]; then
+            if [ "$DATASET_NAME" = "xes3g5m" -o "$DATASET_NAME" = "assist2012" ]; then
                 python "$TRAIN_SCRIPT" \
                     --train_file_name ${DATASET_NAME}_train_fold_${i}.txt \
                     --valid_file_name ${DATASET_NAME}_valid_fold_${i}.txt \
