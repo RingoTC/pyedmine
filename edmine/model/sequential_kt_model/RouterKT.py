@@ -172,7 +172,7 @@ class RouterKTArchitecture(nn.Module):
         # Knowledge encoder
         for block in self.knowledge_encoder:
             # 对0～t-1时刻前的qa信息进行编码, \hat{y_t}
-            y = block(query=y, key=y, values=y, diff=question_difficulty_emb, apply_pos=True, mask_flag=True, q4router=x)
+            y = block(query=y, key=y, values=y, diff=question_difficulty_emb, apply_pos=True, mask_flag=True, q4router=y)
 
 
         flag_first = True
