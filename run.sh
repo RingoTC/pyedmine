@@ -1,17 +1,19 @@
 #!/bin/bash
 
 # Define variables for multiple datasets and models
-DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "ednet-kt1" "xes3g5m")
+# DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "ednet-kt1" "xes3g5m")
 # DATASETS=("assist2009" "assist2012")
 # MODELS=("DKT" "RouterKT" "AKT")
 # DATASETS=("xes3g5m")
 
 
-DATASETS=("edi2020-task34")
+# DATASETS=("edi2020-task34")
 
-# DATASETS=("assist2009")
+DATASETS=("assist2009")
 
 # DATASETS=("moocradar-C746997" "ednet-kt1" "xes3g5m")
+
+# DATASETS=("moocradar-C746997")
 
 MODELS=("RouterKT")
 NUM_FOLDS=5 # Number of folds for k-fold cross-validation

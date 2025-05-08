@@ -445,6 +445,10 @@ class MultiHeadAttention4RouterKT(nn.Module):
         # Router for dynamic heads
         self.wg = nn.Linear(dim_model, num_head - num_shared_heads, bias=False)
         
+        # Router for shared heads (if any)
+        if num_shared_heads > 0:
+            self.wg_shared = nn.Linear(dim_model, num_shared_heads, bias=False)
+        
         self.dropout = nn.Dropout(dropout)
         self.out_proj = nn.Linear(dim_model, dim_model)
         
@@ -465,6 +469,9 @@ class MultiHeadAttention4RouterKT(nn.Module):
         if not self.key_query_same:
             nn.init.constant_(self.query_linear.bias, 0.)
         nn.init.constant_(self.out_proj.bias, 0.)
+        
+        if self.n_shared_heads > 0:
+            nn.init.xavier_uniform_(self.wg_shared.weight)
         
     def get_balance_loss(self):
         # Calculate load balance loss for dynamic heads
@@ -499,6 +506,17 @@ class MultiHeadAttention4RouterKT(nn.Module):
         # Always use question information for routing
         q4router = q4router.view(batch_size, q4router.size(1), num_head, dim_head)
         q_for_routing = q4router.permute(0, 2, 1, 3).reshape(batch_size * q4router.size(1), num_head * dim_head)
+        
+        # Initialize routing mask
+        routing_mask = torch.zeros(batch_size, q4router.size(1), num_head).to(q4router.device)
+        
+        # Handle shared heads if they exist
+        if self.n_shared_heads > 0:
+            shared_logits = self.wg_shared(q_for_routing)  # [bs*seq_len, n_shared_heads]
+            shared_gates = F.softmax(shared_logits, dim=1)  # [bs*seq_len, n_shared_heads]
+            routing_mask[:, :, :self.n_shared_heads] = shared_gates.view(batch_size, q4router.size(1), -1)
+        
+        # Handle dynamic heads
         logits = self.wg(q_for_routing)  # [bs*seq_len, n_dynamic_heads]
         gates = F.softmax(logits, dim=1)  # [bs*seq_len, n_dynamic_heads]
         
@@ -510,15 +528,11 @@ class MultiHeadAttention4RouterKT(nn.Module):
         self.head_routing_probs = gates.mean(dim=0)
         self.head_selections = dynamic_mask.sum(dim=0)
         
-        # Create routing mask
+        # Add dynamic head weights to routing mask
         dynamic_scores_reshaped = (gates * dynamic_mask).view(batch_size, q4router.size(1), -1)
-        routing_mask = torch.zeros(batch_size, q4router.size(1), num_head).to(q4router.device)
-        routing_mask[:, :, :self.n_shared_heads] = 1.0  # Shared heads always active
-        routing_mask[:, :, self.n_shared_heads:] = dynamic_scores_reshaped  # Add dynamic head weights
+        routing_mask[:, :, self.n_shared_heads:] = dynamic_scores_reshaped
         
         # Reshape routing mask to match attention dimensions
-        # routing_mask = routing_mask.mean(dim=1).unsqueeze(-1).unsqueeze(-1)
-        
         routing_mask = routing_mask.permute(0, 2, 1).unsqueeze(-1)
 
         # Calculate attention using the attention function
