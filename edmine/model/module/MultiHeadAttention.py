@@ -517,8 +517,10 @@ class MultiHeadAttention4RouterKT(nn.Module):
         routing_mask[:, :, self.n_shared_heads:] = dynamic_scores_reshaped  # Add dynamic head weights
         
         # Reshape routing mask to match attention dimensions
-        routing_mask = routing_mask.mean(dim=1).unsqueeze(-1).unsqueeze(-1)
+        # routing_mask = routing_mask.mean(dim=1).unsqueeze(-1).unsqueeze(-1)
         
+        routing_mask = routing_mask.permute(0, 2, 1).unsqueeze(-1)
+
         # Calculate attention using the attention function
         scores = attention4router_kt(q, k, v, dim_head, mask, self.dropout, zero_pad, routing_mask, device=self.params["device"])
         

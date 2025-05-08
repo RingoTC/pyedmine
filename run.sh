@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Define variables for multiple datasets and models
-# DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "ednet-kt1" "xes3g5m")
+DATASETS=("assist2009" "assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "ednet-kt1" "xes3g5m")
 # DATASETS=("assist2009" "assist2012")
 # MODELS=("DKT" "RouterKT" "AKT")
 # DATASETS=("xes3g5m")
 
 
-DATASETS=("statics2011")
+DATASETS=("edi2020-task34")
 
 # DATASETS=("assist2009")
 
@@ -85,6 +85,35 @@ for DATASET_NAME in "${DATASETS[@]}"; do
                 --dataset_name ${DATASET_NAME} \
                 --test_file_name ${DATASET_NAME}_test.txt \
                 --user_cold_start 10
+
+            python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
+                --model_dir_name "${MODEL_DIR}" \
+                --dataset_name ${DATASET_NAME} \
+                --test_file_name ${DATASET_NAME}_test.txt \
+                --user_cold_start 5
+            
+            python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
+                --model_dir_name "${MODEL_DIR}" \
+                --dataset_name ${DATASET_NAME} \
+                --test_file_name ${DATASET_NAME}_test.txt \
+                --use_core 1
+
+
+            python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
+                --model_dir_name "${MODEL_DIR}" \
+                --dataset_name ${DATASET_NAME} \
+                --test_file_name ${DATASET_NAME}_test.txt \
+                --multi_step_accumulate 1 \
+                --multi_step_overall 1 \
+                --multi_step 5
+            
+            python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
+                --model_dir_name "${MODEL_DIR}" \
+                --dataset_name ${DATASET_NAME} \
+                --test_file_name ${DATASET_NAME}_test.txt \
+                --multi_step_accumulate 0 \
+                --multi_step_overall 1 \
+                --multi_step 5
         done
     done
 done

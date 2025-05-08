@@ -1,14 +1,26 @@
 #!/bin/bash
 
 # Define variables for multiple datasets and models
-DATASETS=("assist2012" "assist2017" "statics2011" "edi2020-task34" "slepemapy-anatomy" "moocradar-C746997" "xes3g5m" "ednet-kt1" "assist2009")
+# DATASETS=("assist2017" "statics2011" "edi2020-task34" "moocradar-C746997")
+# DATASETS=("assist2009" "assist2012")
+# MODELS=("DKT" "RouterKT" "AKT")
+DATASETS=("assist2009")
+
+
+# DATASETS=("statics2011")
+
+# DATASETS=("moocradar-C746997")
+
+
+
+# DATASETS=("moocradar-C746997" "ednet-kt1" "xes3g5m")
 
 MODELS=("RouterKT")
 NUM_FOLDS=5 # Number of folds for k-fold cross-validation
 SETTING_NAME="pykt_setting"
 SEED="0"
 
-# # Prepare datasets
+# # # Prepare datasets
 # echo "Preparing datasets..."
 # for DATASET_NAME in "${DATASETS[@]}"; do
 #     echo "Preparing dataset: $DATASET_NAME"
@@ -55,6 +67,9 @@ for DATASET_NAME in "${DATASETS[@]}"; do
             #         --setting_name ${SETTING_NAME} \
             #         --dataset_name ${DATASET_NAME} \
             #         --train_batch_size 256
+            #         # --train_batch_size 256 \
+            #         # --num_shared_heads 2 \
+            #         # --num_selected_heads 2
             # fi
 
             echo "Evaluating fold $i..."
@@ -70,36 +85,27 @@ for DATASET_NAME in "${DATASETS[@]}"; do
             # Convert to absolute path and remove any duplicate path components
             MODEL_DIR=$(realpath "$MODEL_DIR")
             echo "Found model directory: ${MODEL_DIR}"
+            # python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
+            #     --model_dir_name "${MODEL_DIR}" \
+            #     --dataset_name ${DATASET_NAME} \
+            #     --test_file_name ${DATASET_NAME}_test.txt \
+            #     --use_core 1
+
             python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
                 --model_dir_name "${MODEL_DIR}" \
                 --dataset_name ${DATASET_NAME} \
                 --test_file_name ${DATASET_NAME}_test.txt \
                 --multi_step_accumulate 1 \
-                --multi_step_overall 1
+                --multi_step_overall 1 \
+                --multi_step 5
             
             python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
                 --model_dir_name "${MODEL_DIR}" \
                 --dataset_name ${DATASET_NAME} \
                 --test_file_name ${DATASET_NAME}_test.txt \
                 --multi_step_accumulate 0 \
-                --multi_step_overall 1
-
-            # MODEL_DIR=$(realpath "$MODEL_DIR")
-            # echo "Found model directory: ${MODEL_DIR}"
-            # python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
-            #     --model_dir_name "${MODEL_DIR}" \
-            #     --dataset_name ${DATASET_NAME} \
-            #     --test_file_name ${DATASET_NAME}_test.txt \
-            #     --question_cold_start 5
-
-            # MODEL_DIR=$(realpath "$MODEL_DIR")
-            # echo "Found model directory: ${MODEL_DIR}"
-            # python examples/knowledge_tracing/evaluate/sequential_dlkt.py \
-            #     --model_dir_name "${MODEL_DIR}" \
-            #     --dataset_name ${DATASET_NAME} \
-            #     --test_file_name ${DATASET_NAME}_test.txt \
-            #     --user_cold_start 5
-            
+                --multi_step_overall 1 \
+                --multi_step 5
         done
     done
 done
