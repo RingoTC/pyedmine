@@ -425,14 +425,12 @@ class MultiHeadAttention4RouterKT(nn.Module):
         model_config = self.params["models_config"]["RouterKT"]
         dim_model = model_config["dim_model"]
         num_head = model_config["num_head"]
-        num_shared_heads = model_config["num_shared_heads"]
         num_selected_heads = model_config["num_selected_heads"]
         dropout = model_config["dropout"]
         key_query_same = model_config["key_query_same"]
         
         self.dim_model = dim_model
         self.num_head = num_head
-        self.n_shared_heads = num_shared_heads
         self.n_selected_heads = num_selected_heads
         self.key_query_same = key_query_same
         
@@ -442,15 +440,15 @@ class MultiHeadAttention4RouterKT(nn.Module):
         if not key_query_same:
             self.query_linear = nn.Linear(dim_model, dim_model)
             
-        # Router for dynamic heads
-        self.wg = nn.Linear(dim_model, num_head - num_shared_heads, bias=False)
+        # Router for dynamic heads (now all heads are dynamic)
+        self.wg = nn.Linear(dim_model, num_head, bias=False)
         
         self.dropout = nn.Dropout(dropout)
         self.out_proj = nn.Linear(dim_model, dim_model)
         
         # Track routing statistics for load balancing
-        self.register_buffer('head_selections', torch.zeros(num_head - num_shared_heads))
-        self.register_buffer('head_routing_probs', torch.zeros(num_head - num_shared_heads))
+        self.register_buffer('head_selections', torch.zeros(num_head))
+        self.register_buffer('head_routing_probs', torch.zeros(num_head))
         
         self._reset_parameters()
         
@@ -473,7 +471,6 @@ class MultiHeadAttention4RouterKT(nn.Module):
         balance_loss = (f * P).sum()
         return balance_loss
 
-        
     def forward(self, q, k, v, mask, zero_pad, question_difficulty_emb, q4router=None):
         model_config = self.params["models_config"]["RouterKT"]
         dim_model = model_config["dim_model"]
@@ -495,12 +492,11 @@ class MultiHeadAttention4RouterKT(nn.Module):
         q = q.transpose(1, 2)
         v = v.transpose(1, 2)
         
-        # Calculate routing scores for dynamic heads
-        # Always use question information for routing
+        # Calculate routing scores for all heads (all heads are dynamic now)
         q4router = q4router.view(batch_size, q4router.size(1), num_head, dim_head)
         q_for_routing = q4router.permute(0, 2, 1, 3).reshape(batch_size * q4router.size(1), num_head * dim_head)
-        logits = self.wg(q_for_routing)  # [bs*seq_len, n_dynamic_heads]
-        gates = F.softmax(logits, dim=1)  # [bs*seq_len, n_dynamic_heads]
+        logits = self.wg(q_for_routing)  # [bs*seq_len, num_head]
+        gates = F.softmax(logits, dim=1)  # [bs*seq_len, num_head]
         
         # Select top-k heads
         _, indices = torch.topk(gates, k=self.n_selected_heads, dim=1)
@@ -510,14 +506,10 @@ class MultiHeadAttention4RouterKT(nn.Module):
         self.head_routing_probs = gates.mean(dim=0)
         self.head_selections = dynamic_mask.sum(dim=0)
         
-        # Create routing mask
-        dynamic_scores_reshaped = (gates * dynamic_mask).view(batch_size, q4router.size(1), -1)
-        routing_mask = torch.zeros(batch_size, q4router.size(1), num_head).to(q4router.device)
-        routing_mask[:, :, :self.n_shared_heads] = 1.0  # Shared heads always active
-        routing_mask[:, :, self.n_shared_heads:] = dynamic_scores_reshaped  # Add dynamic head weights
-        
-        # Reshape routing mask to match attention dimensions
-        routing_mask = routing_mask.mean(dim=1).unsqueeze(-1).unsqueeze(-1)
+        # Create routing mask (no shared heads, only dynamic)
+        dynamic_scores_reshaped = (gates * dynamic_mask).view(batch_size, q4router.size(1), num_head)
+        routing_mask = dynamic_scores_reshaped
+        routing_mask = routing_mask.permute(0, 2, 1).unsqueeze(-1)  # [bs, h, seq_len, 1]
         
         # Calculate attention using the attention function
         scores = attention4router_kt(q, k, v, dim_head, mask, self.dropout, zero_pad, routing_mask, device=self.params["device"])
